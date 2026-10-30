@@ -1,0 +1,53 @@
+
+**Critical safety rule:** Never activate writable workloads in DR while the primary may still be accepting writes. Prevent split-brain through fencing, isolation, or a verified failover control. Traffic switching alone is not fencing.
+
+## 9. Monitoring and alerting
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: k8s-ha-dr-alerts
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: k8s-ha-dr.rules
+      rules:
+        - alert: KubernetesNodeNotReady
+          expr: |
+            kube_node_status_condition{
+              condition="Ready",
+              status="true"
+            } == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Kubernetes node is not ready
+            description: A Kubernetes node has been NotReady for more than 5 minutes.
+
+        - alert: KubernetesDeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available
+            <
+            kube_deployment_spec_replicas
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Deployment replicas are below desired count
+            description: A deployment has fewer available replicas than expected.
+
+        - alert: KubernetesPersistentVolumeClaimPending
+          expr: |
+            kube_persistentvolumeclaim_status_phase{
+              phase="Pending"
+            } == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: PersistentVolumeClaim is pending
+            description: A PVC has remained pending for more than 10 minutes.

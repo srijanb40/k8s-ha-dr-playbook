@@ -1,0 +1,55 @@
+name: Validate Kubernetes DR Playbook
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Validate YAML syntax
+        run: |
+          python -m pip install --user yamllint
+          yamllint -s kubernetes monitoring
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f kubernetes/namespace.yaml
+
+          kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f kubernetes/app-deployment.yaml
+
+          kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f kubernetes/app-service.yaml
+
+          kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f kubernetes/app-pdb.yaml
+
+          kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f kubernetes/app-hpa.yaml
